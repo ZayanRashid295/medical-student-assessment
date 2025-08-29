@@ -25,7 +25,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showIntervention, setShowIntervention] = useState(false)
   const [interventionMessage, setInterventionMessage] = useState("")
-  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -122,10 +121,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
 
         setMessages((prev) => [...prev, patientMessage])
       }
-
-      // Always trigger question refresh after any response
-      setQuestionRefreshTrigger(prev => prev + 1)
-      
     } catch (error) {
       console.error("Error sending message:", error)
       const errorMessage = conversationService.addMessage(conversation.id, {
@@ -217,17 +212,17 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
       </header>
 
       {/* Main Content - Chat Interface with Suggested Questions */}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 8rem)' }}>
+      <div className="max-w-7xl mx-auto p-4 h-[calc(100vh-4rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
           
           {/* Chat Section - Left Side (2/3 width on large screens) */}
           <div className="lg:col-span-2 flex flex-col">
-            <Card className="flex-1 flex flex-col">
+            <Card className="flex-1 mb-4 flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Patient Consultation</CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+              <CardContent className="flex-1 flex flex-col">
+                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -267,8 +262,10 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                     </div>
                   )}
                   <div ref={messagesEndRef} />
-                </div>                {/* Message Input */}
-                <div className="flex space-x-2 mt-4 pt-4 border-t">
+                </div>
+
+                {/* Message Input */}
+                <div className="flex space-x-2">
                   <Input
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
@@ -285,7 +282,7 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
             </Card>
 
             {/* Case Info */}
-            <Card className="mt-4">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Case Information</CardTitle>
               </CardHeader>
@@ -318,7 +315,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
               context={askQuestionsContext}
               onQuestionSelect={handleQuestionSelect}
               isLoading={isLoading}
-              triggerRefresh={questionRefreshTrigger}
             />
           </div>
         </div>
