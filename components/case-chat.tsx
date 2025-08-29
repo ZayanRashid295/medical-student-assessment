@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Send, AlertTriangle, UserIcon, Stethoscope, GraduationCap } from "lucide-react"
+import { ArrowLeft, Send, AlertTriangle, UserIcon, Stethoscope, GraduationCap, Mic, MicOff } from "lucide-react"
 import { AskQuestions } from "@/components/ask-questions"
 import Link from "next/link"
 
@@ -26,6 +26,8 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
   const [showIntervention, setShowIntervention] = useState(false)
   const [interventionMessage, setInterventionMessage] = useState("")
   const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
+  const [isListening, setIsListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,6 +41,32 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     // Scroll to bottom when new messages are added
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = false
+      recognitionRef.current.interimResults = false
+      recognitionRef.current.lang = 'en-US'
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript
+        setCurrentMessage(transcript)
+        setIsListening(false)
+      }
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+    }
+  }, [])
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || !conversation || isLoading) return
@@ -152,6 +180,20 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     }
   }
 
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      setIsListening(true)
+      recognitionRef.current.start()
+    }
+  }
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    }
+  }
+
   const handleQuestionSelect = (question: string) => {
     setCurrentMessage(question)
   }
@@ -227,7 +269,8 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                 <CardTitle className="text-lg">Patient Consultation</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                {/* Chat Messages Container with Fixed Height and Custom Scrollbar */}
+                <div className="h-96 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -277,6 +320,15 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                     disabled={isLoading}
                     className="flex-1"
                   />
+                  <Button
+                    onClick={isListening ? stopListening : startListening}
+                    disabled={isLoading}
+                    variant={isListening ? "destructive" : "outline"}
+                    size="sm"
+                    title={isListening ? "Stop listening" : "Start voice input"}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
                   <Button onClick={handleSendMessage} disabled={isLoading || !currentMessage.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
