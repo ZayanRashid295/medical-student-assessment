@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import type { User, MedicalCase, Conversation, SOAPNote } from "@/lib/data-models"
 import type { SOAPGrading } from "@/lib/soap-service"
+import { soapAssistantService } from "@/lib/soap-assistant-service" // Import your AI service
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,13 +11,220 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Save, Send, CheckCircle, AlertCircle, TrendingUp, BookOpen } from "lucide-react"
+import { ArrowLeft, Save, Send, CheckCircle, AlertCircle, TrendingUp, BookOpen, Lightbulb, FileText, Loader2, Info, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 interface SOAPNoteEditorProps {
   conversation: Conversation
   medicalCase: MedicalCase
   student: User
+}
+
+// AI Assistant interfaces
+interface SOAPSuggestion {
+  section: "subjective" | "objective" | "assessment" | "plan"
+  suggestion: string
+  confidence: number
+  reasoning: string
+}
+
+interface RealTimeFeedback {
+  section: "subjective" | "objective" | "assessment" | "plan"
+  feedback: string
+  severity: "info" | "warning" | "error"
+  suggestion?: string
+}
+
+// AI-Enhanced SOAP Section Component
+const SOAPSectionWithAI = ({ 
+  title, 
+  section, 
+  description, 
+  value, 
+  onChange,
+  placeholder,
+  disabled,
+  conversation,
+  medicalCase
+}: {
+  title: string
+  section: "subjective" | "objective" | "assessment" | "plan"
+  description: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  disabled: boolean
+  conversation: Conversation
+  medicalCase: MedicalCase
+}) => {
+  const [suggestions, setSuggestions] = useState<SOAPSuggestion[]>([])
+  const [feedback, setFeedback] = useState<RealTimeFeedback[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  // Get AI suggestions
+  const getSuggestions = async () => {
+    setLoading(true)
+    try {
+      const newSuggestions = await soapAssistantService.generateSOAPSuggestions(
+        section, value, conversation, medicalCase
+      )
+      setSuggestions(newSuggestions)
+      setShowSuggestions(true)
+    } catch (error) {
+      console.error('Error getting suggestions:', error)
+    }
+    setLoading(false)
+  }
+
+  // Generate AI draft
+  const generateDraft = async () => {
+    setLoading(true)
+    try {
+      const draft = await soapAssistantService.generateSectionDraft(
+        section, conversation, medicalCase
+      )
+      onChange(draft)
+    } catch (error) {
+      console.error('Error generating draft:', error)
+    }
+    setLoading(false)
+  }
+
+  // Real-time feedback
+  useEffect(() => {
+    const getFeedback = async () => {
+      if (value.length > 10) {
+        try {
+          const newFeedback = await soapAssistantService.getRealTimeFeedback(
+            section, value, conversation, medicalCase
+          )
+          setFeedback(newFeedback)
+        } catch (error) {
+          console.error('Error getting feedback:', error)
+        }
+      } else {
+        setFeedback([])
+      }
+    }
+
+    const debounceTimer = setTimeout(getFeedback, 1000)
+    return () => clearTimeout(debounceTimer)
+  }, [value, section, conversation, medicalCase])
+
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'error': return <AlertCircle className="w-4 h-4 text-red-500" />
+      case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-500" />
+      case 'info': return <Info className="w-4 h-4 text-blue-500" />
+      default: return <CheckCircle className="w-4 h-4 text-green-500" />
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>{title}</CardTitle>
+            <p className="text-sm text-gray-600 mt-1">{description}</p>
+          </div>
+          {!disabled && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={getSuggestions}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Lightbulb className="w-4 h-4 mr-1" />
+                )}
+                Suggestions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateDraft}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <FileText className="w-4 h-4 mr-1" />
+                )}
+                Generate
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* AI Suggestions Panel */}
+        {showSuggestions && suggestions.length > 0 && !disabled && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <h4 className="font-medium text-blue-900 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                AI Suggestions
+              </h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSuggestions(false)}
+                className="text-blue-600 hover:text-blue-800"
+              >
+                Hide
+              </Button>
+            </div>
+            {suggestions.map((suggestion, index) => (
+              <div key={index} className="bg-white border border-blue-100 rounded p-3 space-y-2">
+                <div className="flex justify-between items-start">
+                  <p className="text-sm text-gray-800">{suggestion.suggestion}</p>
+                  <Badge variant="secondary" className="text-xs">
+                    {Math.round(suggestion.confidence * 100)}%
+                  </Badge>
+                </div>
+                <p className="text-xs text-gray-600">{suggestion.reasoning}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Textarea */}
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="min-h-[200px]"
+          disabled={disabled}
+        />
+
+        {/* Real-time Feedback */}
+        {feedback.length > 0 && !disabled && (
+          <div className="space-y-2">
+            {feedback.map((item, index) => (
+              <div key={index} className={`flex gap-3 p-3 rounded-lg ${
+                item.severity === 'error' ? 'bg-red-50 border border-red-200' :
+                item.severity === 'warning' ? 'bg-yellow-50 border border-yellow-200' :
+                'bg-blue-50 border border-blue-200'
+              }`}>
+                {getSeverityIcon(item.severity)}
+                <div className="flex-1">
+                  <p className="text-sm text-gray-800">{item.feedback}</p>
+                  {item.suggestion && (
+                    <p className="text-xs text-gray-600 mt-1">{item.suggestion}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 const renderSOAPContent = (content: any): string => {
@@ -304,7 +512,7 @@ export function SOAPNoteEditor({ conversation, medicalCase, student }: SOAPNoteE
                 </CardContent>
               </Card>
 
-              {/* Feedback */}
+              {/* Feedback sections - keeping your existing feedback display */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -372,6 +580,7 @@ export function SOAPNoteEditor({ conversation, medicalCase, student }: SOAPNoteE
               </Card>
             </TabsContent>
 
+            {/* Keeping your existing comparison and your-note tabs */}
             <TabsContent value="comparison" className="space-y-6">
               {aiSOAP ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -495,8 +704,7 @@ export function SOAPNoteEditor({ conversation, medicalCase, student }: SOAPNoteE
             <Alert>
               <BookOpen className="h-4 w-4" />
               <AlertDescription>
-                Based on your conversation with the patient, write a comprehensive SOAP note. Include all relevant
-                information from your history taking and clinical reasoning.
+                Based on your conversation with the patient, write a comprehensive SOAP note. Use the AI assistance features to get suggestions, auto-complete medical terms, and receive real-time feedback as you write.
               </AlertDescription>
             </Alert>
 
@@ -509,70 +717,55 @@ export function SOAPNoteEditor({ conversation, medicalCase, student }: SOAPNoteE
               </Alert>
             )}
 
+            {/* Enhanced SOAP sections with AI assistance */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subjective</CardTitle>
-                  <p className="text-sm text-gray-600">Patient's history, symptoms, and subjective information</p>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={subjective}
-                    onChange={(e) => setSubjective(e.target.value)}
-                    placeholder="Document the patient's chief complaint, history of present illness, past medical history, medications, allergies, social history, and review of systems..."
-                    className="min-h-[200px]"
-                    disabled={isSubmitted}
-                  />
-                </CardContent>
-              </Card>
+              <SOAPSectionWithAI
+                title="Subjective"
+                section="subjective"
+                description="Patient's history, symptoms, and subjective information"
+                value={subjective}
+                onChange={setSubjective}
+                placeholder="Document the patient's chief complaint, history of present illness, past medical history, medications, allergies, social history, and review of systems..."
+                disabled={isSubmitted}
+                conversation={conversation}
+                medicalCase={medicalCase}
+              />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Objective</CardTitle>
-                  <p className="text-sm text-gray-600">Physical examination findings and diagnostic results</p>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={objective}
-                    onChange={(e) => setObjective(e.target.value)}
-                    placeholder="Document vital signs, physical examination findings, laboratory results, imaging studies, and other objective data..."
-                    className="min-h-[200px]"
-                    disabled={isSubmitted}
-                  />
-                </CardContent>
-              </Card>
+              <SOAPSectionWithAI
+                title="Objective"
+                section="objective"
+                description="Physical examination findings and diagnostic results"
+                value={objective}
+                onChange={setObjective}
+                placeholder="Document vital signs, physical examination findings, laboratory results, imaging studies, and other objective data..."
+                disabled={isSubmitted}
+                conversation={conversation}
+                medicalCase={medicalCase}
+              />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Assessment</CardTitle>
-                  <p className="text-sm text-gray-600">Clinical impression and differential diagnosis</p>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={assessment}
-                    onChange={(e) => setAssessment(e.target.value)}
-                    placeholder="Provide your clinical impression, primary diagnosis, and differential diagnoses with supporting rationale..."
-                    className="min-h-[200px]"
-                    disabled={isSubmitted}
-                  />
-                </CardContent>
-              </Card>
+              <SOAPSectionWithAI
+                title="Assessment"
+                section="assessment"
+                description="Clinical impression and differential diagnosis"
+                value={assessment}
+                onChange={setAssessment}
+                placeholder="Provide your clinical impression, primary diagnosis, and differential diagnoses with supporting rationale..."
+                disabled={isSubmitted}
+                conversation={conversation}
+                medicalCase={medicalCase}
+              />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Plan</CardTitle>
-                  <p className="text-sm text-gray-600">Treatment plan and follow-up</p>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={plan}
-                    onChange={(e) => setPlan(e.target.value)}
-                    placeholder="Outline your treatment plan including medications, procedures, monitoring, patient education, and follow-up care..."
-                    className="min-h-[200px]"
-                    disabled={isSubmitted}
-                  />
-                </CardContent>
-              </Card>
+              <SOAPSectionWithAI
+                title="Plan"
+                section="plan"
+                description="Treatment plan and follow-up"
+                value={plan}
+                onChange={setPlan}
+                placeholder="Outline your treatment plan including medications, procedures, monitoring, patient education, and follow-up care..."
+                disabled={isSubmitted}
+                conversation={conversation}
+                medicalCase={medicalCase}
+              />
             </div>
           </div>
         )}
