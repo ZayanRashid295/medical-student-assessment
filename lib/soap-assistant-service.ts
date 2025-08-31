@@ -1,10 +1,10 @@
 import { generateText } from "ai"
 import type { MedicalCase, Conversation } from "./data-models"
 
-//import { createOpenAI } from "@ai-sdk/openai"
+import { createOpenAI } from "@ai-sdk/openai"
 
-//const openai = createOpenAI({ apiKey: "add kerlena" })
-import { openai } from "@ai-sdk/openai"
+const openai = createOpenAI({ apiKey: "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" })
+//import { openai } from "@ai-sdk/openai"
 
 export interface SOAPSuggestion {
   section: "subjective" | "objective" | "assessment" | "plan"

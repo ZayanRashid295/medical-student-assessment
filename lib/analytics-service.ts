@@ -4,7 +4,7 @@ import type { Conversation, SOAPNote } from "./data-models"
 import { generateText } from "ai"
 import { createOpenAI } from "@ai-sdk/openai"
 
-const openai = createOpenAI({ apiKey: "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" })
+const openai = createOpenAI({ apiKey: "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" })
 export interface PerformanceMetrics {
   totalCases: number
   completedCases: number
