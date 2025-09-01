@@ -46,42 +46,12 @@ A comprehensive web application for medical education that simulates patient int
 
 ### Installation
 
-1. **Clone or download the project**
-   \`\`\`bash
-   # If using GitHub integration
-   git clone <your-repo-url>
-   cd medical-assessment-app
-   \`\`\`
-
-2. **Install dependencies**
-   \`\`\`bash
-   npm install
-   \`\`\`
-
-3. **Set up environment variables**
-   \`\`\`bash
-   # Copy the example environment file
-   cp .env.example .env.local
-   
-   # Edit .env.local and add your OpenAI API key
-   OPENAI_API_KEY=your_actual_openai_api_key_here
-   \`\`\`
-
-4. **Run the development server**
    \`\`\`bash
    npm run dev
    \`\`\`
 
-5. **Open the application**
+
    Navigate to `http://localhost:3000` in your browser
-
-### Getting Your OpenAI API Key
-
-1. Visit [OpenAI Platform](https://platform.openai.com/)
-2. Sign up or log in to your account
-3. Navigate to API Keys section
-4. Create a new API key
-5. Copy the key (starts with `sk-...`) and add it to your `.env.local` file
 
 ## Usage Guide
 
@@ -180,6 +150,3 @@ For technical issues or questions:
 - Mobile app development
 - Voice interaction capabilities
 
-## License
-
-This project is designed for educational purposes in medical training and assessment.

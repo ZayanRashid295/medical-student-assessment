@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Send, AlertTriangle, UserIcon, Stethoscope, GraduationCap, Mic, MicOff } from "lucide-react"
+import { ArrowLeft, Send, AlertTriangle, UserIcon, Stethoscope, GraduationCap } from "lucide-react"
 import { AskQuestions } from "@/components/ask-questions"
 import Link from "next/link"
 
@@ -25,9 +25,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showIntervention, setShowIntervention] = useState(false)
   const [interventionMessage, setInterventionMessage] = useState("")
-  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
-  const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,32 +38,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     // Scroll to bottom when new messages are added
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
-
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = false
-      recognitionRef.current.interimResults = false
-      recognitionRef.current.lang = 'en-US'
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript
-        setCurrentMessage(transcript)
-        setIsListening(false)
-      }
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false)
-      }
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
-        setIsListening(false)
-      }
-    }
-  }, [])
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || !conversation || isLoading) return
@@ -150,10 +121,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
 
         setMessages((prev) => [...prev, patientMessage])
       }
-
-      // Always trigger question refresh after any response
-      setQuestionRefreshTrigger(prev => prev + 1)
-      
     } catch (error) {
       console.error("Error sending message:", error)
       const errorMessage = conversationService.addMessage(conversation.id, {
@@ -177,20 +144,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     if (conversation) {
       conversationService.completeConversation(conversation.id)
       window.location.href = `/soap/${conversation.id}`
-    }
-  }
-
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      setIsListening(true)
-      recognitionRef.current.start()
-    }
-  }
-
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop()
-      setIsListening(false)
     }
   }
 
@@ -259,18 +212,17 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
       </header>
 
       {/* Main Content - Chat Interface with Suggested Questions */}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 8rem)' }}>
+      <div className="max-w-7xl mx-auto p-4 h-[calc(100vh-4rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
           
           {/* Chat Section - Left Side (2/3 width on large screens) */}
           <div className="lg:col-span-2 flex flex-col">
-            <Card className="flex-1 flex flex-col">
+            <Card className="flex-1 mb-4 flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Patient Consultation</CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0">
-                {/* Chat Messages Container with Fixed Height and Custom Scrollbar */}
-                <div className="h-96 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
+              <CardContent className="flex-1 flex flex-col">
+                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -310,8 +262,10 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                     </div>
                   )}
                   <div ref={messagesEndRef} />
-                </div>                {/* Message Input */}
-                <div className="flex space-x-2 mt-4 pt-4 border-t">
+                </div>
+
+                {/* Message Input */}
+                <div className="flex space-x-2">
                   <Input
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
@@ -320,15 +274,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                     disabled={isLoading}
                     className="flex-1"
                   />
-                  <Button
-                    onClick={isListening ? stopListening : startListening}
-                    disabled={isLoading}
-                    variant={isListening ? "destructive" : "outline"}
-                    size="sm"
-                    title={isListening ? "Stop listening" : "Start voice input"}
-                  >
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </Button>
                   <Button onClick={handleSendMessage} disabled={isLoading || !currentMessage.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
@@ -337,7 +282,7 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
             </Card>
 
             {/* Case Info */}
-            <Card className="mt-4">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Case Information</CardTitle>
               </CardHeader>
@@ -370,7 +315,6 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
               context={askQuestionsContext}
               onQuestionSelect={handleQuestionSelect}
               isLoading={isLoading}
-              triggerRefresh={questionRefreshTrigger}
             />
           </div>
         </div>
