@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Practimed.AI — AI Medical Student Assessment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <meta name="description" content="Practimed.AI — realistic AI patient simulations, real-time supervision & SOAP note evaluation for medical education. Perfect for hospitals, medical schools and investors.">
+  <style>
+    :root{
+      --red: #d01818;
+      --bg: #ffffff;
+      --muted: #6b6b6b;
+      --glass: rgba(255,255,255,0.7);
+      --card-shadow: 0 10px 30px rgba(13,13,13,0.08);
+      --accent-gradient: linear-gradient(90deg, var(--red) 0%, #ff4d4d 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:#111827;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      line-height:1.45;
+    }
+    header{
+      position:sticky;top:0;z-index:60;
+      backdrop-filter: blur(6px);
+      background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4));
+      border-bottom:1px solid rgba(0,0,0,0.04);
+      display:flex;align-items:center;justify-content:center;padding:14px 20px;
+    }
+    .topbar{max-width:1200px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .logo{font-weight:800;color:var(--red);letter-spacing:0.4px;font-size:20px;display:flex;align-items:center;gap:10px}
+    .logo-icon{width:36px;height:36px;flex:0 0 36px}
+    .logo-word{font-weight:800;color:var(--red);font-size:20px}
+    .byline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+    .infyma-logo{width:76px;height:20px;display:inline-block}
+
+    main{max-width:1200px;margin:40px auto;}
+    .hero{display:grid;grid-template-columns:1fr 480px;gap:36px;align-items:center}
+    @media (max-width:960px){.hero{grid-template-columns:1fr;}}
+
+    .hero-left h1{font-size:36px;margin:0 0 12px;line-height:1.02}
+    .kicker{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(208,24,24,0.08);color:var(--red);font-weight:600;margin-bottom:12px}
+    .sub{color:var(--muted);font-size:16px;margin-bottom:18px}
+    .cta-row{display:flex;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 18px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--accent-gradient);color:white;box-shadow: 0 10px 30px rgba(208,24,24,0.12);}
+    .btn-ghost{background:transparent;color:var(--red);border:1px solid rgba(208,24,24,0.12)}
+
+    .stats{display:flex;gap:18px;margin-top:20px}
+    .stat{background:linear-gradient(180deg,rgba(0,0,0,0.02),transparent);padding:12px;border-radius:10px;min-width:110px;text-align:center}
+    .stat strong{display:block;font-size:18px;color:var(--red)}
+    .mock{position:relative;padding:22px;border-radius:18px;background:linear-gradient(180deg,#fff,#fff);box-shadow:var(--card-shadow);}
+
+    /* conversation mockup */
+    .chat{height:500px;background:linear-gradient(180deg,#fafafa,#fff);border-radius:12px;padding:18px;overflow:auto;border:1px solid rgba(0,0,0,0.03)}
+    .bubble{max-width:78%;padding:12px 14px;border-radius:14px;margin-bottom:12px;display:inline-block}
+    .patient{background:#fff;border:1px solid rgba(0,0,0,0.04);}
+    .student{background:var(--red);color:white;margin-left:auto}
+    .alert{position:absolute;inset:18px 22px auto auto;background:var(--red);color:white;padding:6px 10px;border-radius:8px;display:flex;gap:8px;align-items:center;transform:translateY(-12px);box-shadow:0 6px 20px rgba(208,24,24,0.18)}
+    .alert.hidden{display:none}
+
+    section{margin-top:64px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+
+    .feature-card{padding:20px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),#fff);box-shadow:var(--card-shadow)}
+    .feature-card h3{margin:8px 0 4px}
+    .feature-card p{color:var(--muted);margin:0}
+
+    .pricing{display:flex;gap:16px;align-items:stretch}
+    .plan{flex:1;padding:22px;border-radius:14px;border:1px solid rgba(0,0,0,0.04);background:linear-gradient(180deg,#fff,#fff);box-shadow:var(--card-shadow);display:flex;flex-direction:column;gap:16px}
+    .plan.popular{transform:scale(1.03);border:2px solid rgba(208,24,24,0.12)}
+    .price{font-size:28px;font-weight:800;color:var(--red)}
+    .price-small{font-size:20px;}
+    .per{color:var(--muted);font-size:13px}
+
+    footer{margin-top:60px;padding:30px;text-align:center;color:var(--muted);font-size:14px}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(8,7,7,0.45);display:none;align-items:center;justify-content:center;z-index:80}
+    .modal{width:min(760px,94%);background:white;border-radius:12px;padding:20px;box-shadow:0 30px 60px rgba(13,13,13,0.3)}
+    .modal.open{animation:pop .18s ease both}
+    @keyframes pop{from{transform:translateY(6px) scale(.996);opacity:0}to{transform:none;opacity:1}}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:640px){.form-row{grid-template-columns:1fr}}
+    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);font-size:14px}
+    label{font-size:13px;color:var(--muted);margin-bottom:6px;display:block}
+
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(208,24,24,0.08);color:var(--red);font-weight:600}
+
+    .testimonial{padding:18px;border-radius:12px;background:linear-gradient(180deg,#fff,#fff);box-shadow:var(--card-shadow)}
+
+    /* small helpers */
+    .muted{color:var(--muted)}
+    .center{text-align:center}
+    .small{font-size:13px}
+    .wave{width:100%;height:80px;margin-top:26px;transform:translateY(1px)}
+
+    /* micro interactions */
+    .tilt{transition:transform .28s cubic-bezier(.2,.9,.3,1);will-change:transform}
+    .tilt:hover{transform:translateY(-8px) rotate(-.3deg)}
+
+    /* Animations and reveal helpers appended to existing CSS */
+    .revealable{opacity:0;transform:translateY(18px);transition:opacity .7s ease, transform .7s cubic-bezier(.2,.9,.3,1);will-change:transform,opacity}
+    .revealable.reveal{opacity:1;transform:none}
+
+    .bubble{opacity:0;transform:translateY(8px) scale(.995);transition:transform .42s cubic-bezier(.2,.9,.3,1), opacity .42s}
+    .bubble.show{opacity:1;transform:none}
+    .bubble.pulse-alert{animation:flashBg .9s ease both}
+    @keyframes flashBg{0%{background:inherit}30%{background:rgba(208,24,24,0.07)}100%{background:inherit}}
+
+    @keyframes pulse{0%{box-shadow:0 6px 20px rgba(208,24,24,0.08)}50%{box-shadow:0 12px 30px rgba(208,24,24,0.16)}100%{box-shadow:0 6px 20px rgba(208,24,24,0.08)}}
+    .alert.pulse{animation:pulse 2.2s infinite}
+
+    @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+    .btn-primary{background-size:200% 100%}
+    .btn-primary.animated{animation:gradientShift 6s ease infinite}
+
+    @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+    .mock.floating{animation:floaty 6s ease-in-out infinite}
+
+    .modal{transform:translateY(8px) scale(.998);opacity:0;transition:transform .18s ease,opacity .18s}
+    .modal.open{transform:none;opacity:1}
+
+    /* Responsive & accessibility enhancements */
+    @media (max-width:960px){
+      .topbar{flex-direction:column;gap:8px;padding:12px 14px}
+      .topbar > div:first-child{width:100%;display:flex;justify-content:space-between;align-items:center}
+      .hero{grid-template-columns:1fr;gap:22px}
+      .hero-left h1{font-size:28px}
+      .mock{width:100%}
+    }
+    @media (max-width:640px){
+      .chat{height:320px}
+      .cta-row{flex-direction:column}
+      .cta-row .btn{width:100%;justify-content:center}
+      .pricing{flex-direction:column}
+      .plan{width:100%}
+      .stat{min-width:unset}
+    }
+
+    /* Touch & focus targets */
+    .btn{transition:transform .12s ease, box-shadow .12s ease, opacity .18s; touch-action:manipulation}
+    .btn:active{transform:translateY(1px) scale(.998)}
+    .btn:focus{outline:3px solid rgba(208,24,24,0.14);outline-offset:3px}
+
+    /* make revealable default less aggressive for small controls */
+    .revealable{opacity:0;transform:translateY(12px);transition:opacity .6s ease, transform .6s cubic-bezier(.2,.9,.3,1)}
+    .revealable.reveal{opacity:1;transform:none}
+
+    /* ensure plan cards show pointer and have hover states */
+    .plan{cursor:pointer}
+    .plan:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(13,13,13,0.09)}
+
+    /* subtle card focus for keyboard users */
+    .plan:focus-within{outline:3px solid rgba(208,24,24,0.08);outline-offset:6px}
+
+    /* Mobile polish & smooth scroll */
+    html{scroll-behavior:smooth}
+
+    /* Ensure header spacing on very small phones */
+    .topbar{padding-left:12px;padding-right:12px}
+
+    @media (max-width:480px){
+      .hero-left h1{font-size:20px;line-height:1.06}
+      .kicker{font-size:11px;padding:6px 10px}
+      .btn{padding:14px 14px;font-size:15px;border-radius:12px}
+      .cta-row .btn{width:100%;display:block}
+      .chat{height:260px}
+      .mock{padding:16px}
+      .stat{padding:10px;font-size:13px}
+      .modal{width:calc(100% - 28px);max-height:92vh;padding:14px}
+      .modal-backdrop{align-items:flex-start;padding-top:18px}
+      .pricing{gap:12px}
+    }
+
+    /* Make primary CTAs more visible on mobile with a subtle sticky bottom CTA bar option */
+    .mobile-cta-bar{display:none}
+    @media (max-width:480px){
+      .mobile-cta-bar{position:fixed;left:12px;right:12px;bottom:14px;display:flex;gap:10px;z-index:90}
+      .mobile-cta-bar .btn{flex:1;border-radius:12px;padding:12px 14px}
+    }
+
+    /* Improve focus visibility for keyboard users on small screens */
+    @media (max-width:640px){
+      .btn:focus{outline:3px solid rgba(208,24,24,0.16)}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="false">
+            <title>Practimed.AI</title>
+            <rect width="48" height="48" rx="10" fill="#d01818"/>
+            <path d="M10 28 L16 22 L20 28 L26 16 L30 28 L38 20" stroke="#fff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="logo-word">Practimed.<span style="font-weight:700;color:#111">AI</span></span>
+        </div>
+
+        <!-- add Infyma logo here (header only) -->
+        <div class="byline small" style="display:flex;align-items:center;gap:8px;color:var(--muted);margin-left:6px;">
+          <span>A product by</span>
+
+          <a href="https://infyma.live"><img src="assets/infyma.png" alt="Infyma" class="infyma-img" height="22" /></a>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <nav class="muted small" aria-label="top">
+          <a href="#features" style="margin-right:12px;color:inherit;text-decoration:none">Features</a>
+          <a href="#pricing" style="margin-right:12px;color:inherit;text-decoration:none">Pricing</a>
+          <a href="#demo" style="color:inherit;text-decoration:none">Demo</a>
+        </nav>
+        <button class="btn btn-ghost" onclick="openLead('demo')">Request Demo</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-left">
+        <span class="kicker">AI Patient Simulation · Real-time Supervision · SOAP Evaluation</span>
+        <h1>Train sharper clinicians, faster — with human-like patients and instant feedback</h1>
+        <p class="sub">Practimed.AI simulates realistic patient encounters, supervises conversations in real time, and grades SOAP notes — so medical schools and hospitals can scale clinical training without losing quality.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary" onclick="openLead('demo')">Request a private demo</button>
+          <button class="btn btn-ghost" onclick="openLead('trial')">Start a free trial</button>
+        </div>
+
+        <div class="stats" aria-hidden="true">
+          <div class="stat"><strong id="cases-counter">120+</strong><span class="small muted">High-fidelity cases</span></div>
+          <div class="stat"><strong id="alerts-counter">Real-time</strong><span class="small muted">AI supervision</span></div>
+          <div class="stat"><strong id="analytics-counter">Detailed</strong><span class="small muted">SOAP feedback</span></div>
+        </div>
+
+        <p class="small muted" style="margin-top:12px">Built with Next.js, TypeScript, GPT-4o Mini and modern analytics — secure and configurable for institutional deployments.</p>
+      </div>
+
+      <div class="hero-right">
+        <div class="mock tilt">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:10px;height:10px;border-radius:50%;background:#34d399"></div>
+              <div class="small muted">Case: Chest Pain — Simulated Patient</div>
+            </div>
+            <div class="pill">For medical education</div>
+          </div>
+
+          <div class="chat" id="chat">
+            <div class="bubble patient">Hello doctor, I've been having chest discomfort and a shortness of breath for two days.</div>
+            <div class="bubble student">Can you tell me when the pain started and how it feels?</div>
+            <div class="bubble patient">It started after climbing stairs. It's a tight pressure, 7/10, worse with exertion.</div>
+            <div class="bubble student">Do you have any medical history—hypertension or high cholesterol?</div>
+            <div class="bubble patient">I have high blood pressure and I'm on medication, but I forgot to take it yesterday.</div>
+            <div class="bubble patient" style="opacity:.9;font-weight:700;color:var(--red);">AI Supervisor: Red Alert — missed key safety question (allergy to aspirin)</div>
+          </div>
+
+          <div class="alert hidden" id="alertBox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 8v4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Real-time intervention active</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2 style="margin:0 0 12px">Why Practimed.AI</h2>
+      <p class="muted" style="margin:0 0 24px">A focused platform to evaluate, supervise and accelerate clinical reasoning — built for professors, training directors and hospital education teams.</p>
+
+      <div class="grid">
+        <div class="feature-card">
+          <h3>AI-Powered Patient Simulation</h3>
+          <p>Adaptive, believable patient personas that change with your questions — from subtle red flags to evolving disease courses.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Real-Time Supervision</h3>
+          <p>Automated AI supervisor detects unsafe, irrelevant or low-value questions and visually guides learners toward the right approach.</p>
+        </div>
+        <div class="feature-card">
+          <h3>SOAP Note Evaluation</h3>
+          <p>Structured SOAP editor with AI comparison to reference notes, section-by-section scoring, and actionable feedback for learners.</p>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:18px">
+        <div class="feature-card">
+          <h3>Progress Analytics</h3>
+          <p>Rich dashboards track learner trends, intervention frequency and note quality — perfect for curriculum evaluation and research.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Case Management</h3>
+          <p>Organize cases by specialty and difficulty, tag learning objectives, and easily share scenarios across cohorts.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Secure, Extensible Stack</h3>
+          <p>Designed for institutional rollouts — Next.js, TypeScript, GPT-4o Mini integration, and flexible deployment models.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <h2 style="margin-top:26px;">Pricing (monthly)</h2>
+      <p class="muted">Transparent plans for teams of any size. All plans include simulated cases, AI supervision, SOAP evaluation and basic analytics. Enterprise plans include SSO, custom cases and priority support.</p>
+
+      <div class="pricing" style="margin-top:18px">
+        <div class="plan tilt">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small muted">Starter</div>
+              <div class="price">$299 <span class="per">/month</span></div>
+            </div>
+            <div class="small muted">~25 students</div>
+          </div>
+          <div style="flex:1">
+            <ul class="muted small">
+              <li>50+ curated cases</li>
+              <li>Real-time supervision</li>
+              <li>SOAP note feedback</li>
+            </ul>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="openLead('Starter')">Choose Starter</button>
+          </div>
+        </div>
+
+        <div class="plan popular tilt">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small muted">Pro</div>
+              <div class="price">$899 <span class="per">/month</span></div>
+            </div>
+            <div class="small muted">~Department</div>
+          </div>
+          <div style="flex:1">
+            <ul class="muted small">
+              <li>All Starter features</li>
+              <li>Customized case bundles</li>
+              <li>Detailed analytics & cohort reporting</li>
+            </ul>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="openLead('Pro')">Choose Pro</button>
+          </div>
+        </div>
+
+        <div class="plan tilt">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small muted">Enterprise</div>
+              <div class="price price-small">Contact For Pricing</div>
+            </div>
+            <div class="small muted">Institution</div>
+          </div>
+          <div style="flex:1">
+            <ul class="muted small">
+              <li>Everything in Pro</li>
+              <li>SSO, dedicated cases & deployment</li>
+              <li>Priority onboarding & support</li>
+            </ul>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="openLead('Enterprise')">Contact Sales</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo">
+      <h2 style="margin-top:36px">Live demo & research-ready insights</h2>
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:18px;align-items:start">
+        <div style="background:linear-gradient(180deg,#fff,#fff);padding:18px;border-radius:12px;box-shadow:var(--card-shadow)">
+          <h3>See it in action</h3>
+          <p class="muted">Schedule a private walkthrough. We tailor demos for faculty, training directors and hospital administrators — show the metrics you care about.</p>
+          <ul class="muted small">
+            <li>Scenario walkthroughs with live interventions</li>
+            <li>SOAP note grading & benchmark comparison</li>
+            <li>Exportable analytics for research & accreditation</li>
+          </ul>
+          <div style="margin-top:14px">
+            <button class="btn btn-primary" onclick="openLead('demo')">Book a walkthrough</button>
+          </div>
+        </div>
+
+        <div class="testimonial">
+          <strong>Professor A. Silva</strong>
+          <div class="small muted">Director of Clinical Education — Urban Medical School</div>
+          <p style="margin-top:8px">"Practimed.AI let us scale supervised practice sessions without sacrificing safety. The AI supervisor caught common student oversights and our SOAP note quality improved 28% in the first month."</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div style="max-width:900px;margin:0 auto">
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px">
+          <div class="logo">
+            <svg class="logo-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+              <rect width="48" height="48" rx="10" fill="#d01818"/>
+              <path d="M10 28 L16 22 L20 28 L26 16 L30 28 L38 20" stroke="#fff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="logo-word">Practimed.<span style="font-weight:700;color:#111">AI</span></span>
+          </div>
+          <div class="muted">A product by Infyma</div>
+        </div>
+        <div class="small muted">© Practimed.AI · Built for medical education teams — For inquiries, request a demo above.</div>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- Lead capture modal (single form used by all CTAs) -->
+  <div class="modal-backdrop" id="backdrop" role="dialog" aria-hidden="true">
+    <div class="modal" role="document" aria-modal="true" id="leadModal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div>
+          <div style="font-weight:800;font-size:18px">Request demo / Start trial</div>
+          <div class="small muted">Complete this short form and we'll contact you within one business day.</div>
+        </div>
+        <button aria-label="close modal" onclick="closeLead()" style="background:transparent;border:0;font-size:18px">✕</button>
+      </div>
+
+      <form id="leadForm">
+        <div class="form-row">
+          <div>
+            <label for="name">Full name</label>
+            <input id="name" name="name" type="text" required placeholder="Dr. Jane Doe">
+          </div>
+          <div>
+            <label for="email">Work email</label>
+            <input id="email" name="email" type="email" required placeholder="you@university.edu">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px">
+          <div>
+            <label for="org">Organization</label>
+            <input id="org" name="org" type="text" placeholder="University / Hospital / Clinic">
+          </div>
+          <div>
+            <label for="role">Role</label>
+            <select id="role" name="role">
+              <option>Professor / Educator</option>
+              <option>Training Director</option>
+              <option>Hospital Admin</option>
+              <option>Investor</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="plan">Interest</label>
+          <select id="plan" name="plan">
+            <option>Request demo</option>
+            <option>Starter</option>
+            <option>Pro</option>
+            <option>Enterprise</option>
+            <option>Other / Partnership</option>
+          </select>
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="message">Message (optional)</label>
+          <textarea id="message" name="message" rows="3" placeholder="Tell us what you'd like to see or measure"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:14px">
+          <button type="submit" class="btn btn-primary">Send request</button>
+          <button type="button" class="btn" onclick="closeLead()">Cancel</button>
+          <div id="formStatus" class="small muted" style="margin-left:8px"></div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div class="mobile-cta-bar" aria-hidden="true">
+    <button class="btn btn-primary" onclick="openLead('demo')">Request demo</button>
+    <button class="btn btn-ghost" onclick="openLead('trial')">Start trial</button>
+  </div>
+
+  <script>
+    // Enhanced interactivity & animations with fixes for button visibility and responsiveness
+    const backdrop = document.getElementById('backdrop');
+    const leadForm = document.getElementById('leadForm');
+    const formStatus = document.getElementById('formStatus');
+    const leadModal = document.getElementById('leadModal');
+    const alertBox = document.getElementById('alertBox');
+
+    function openLead(plan){
+      // open modal and focus first input for accessibility
+      backdrop.style.display = 'flex';
+      leadModal.classList.add('open');
+      document.getElementById('plan').value = plan || 'Request demo';
+      document.body.style.overflow = 'hidden';
+      backdrop.setAttribute('aria-hidden', 'false');
+      setTimeout(()=>{ document.getElementById('name').focus(); }, 160);
+      document.querySelectorAll('.btn-primary').forEach(b=>b.classList.add('animated'));
+    }
+    function closeLead(){
+      leadModal.classList.remove('open');
+      backdrop.style.display = 'none';
+      document.body.style.overflow = '';
+      backdrop.setAttribute('aria-hidden', 'true');
+      formStatus.textContent = '';
+      leadForm.reset();
+      document.querySelectorAll('.btn-primary').forEach(b=>b.classList.remove('animated'));
+    }
+
+    // form submission stores leads temporarily in localStorage
+    leadForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      formStatus.textContent = 'Sending...';
+      const data = {
+        name: leadForm.name.value.trim(),
+        email: leadForm.email.value.trim(),
+        org: leadForm.org.value.trim(),
+        role: leadForm.role.value,
+        plan: leadForm.plan.value,
+        message: leadForm.message.value.trim(),
+        time: new Date().toISOString()
+      };
+
+      try{
+        const existing = JSON.parse(localStorage.getItem('practimed_leads')||'[]');
+        existing.push(data);
+        localStorage.setItem('practimed_leads', JSON.stringify(existing));
+
+        formStatus.textContent = 'Thanks — we received your request.';
+        setTimeout(()=>{
+          closeLead();
+          toast('Request received — we will contact you within one business day.');
+        },900);
+
+        console.log('Lead saved', data);
+      }catch(err){
+        console.error(err);
+        formStatus.textContent = 'An error occurred. Please try again.';
+      }
+    });
+
+    // small toast helper
+    function toast(msg){
+      const el = document.createElement('div');
+      el.textContent = msg;
+      el.style.position = 'fixed';
+      el.style.right = '20px';
+      el.style.bottom = '20px';
+      el.style.padding = '12px 16px';
+      el.style.background = 'rgba(0,0,0,0.84)';
+      el.style.color = 'white';
+      el.style.borderRadius = '10px';
+      el.style.zIndex = 120;
+      el.style.transition = 'opacity .4s ease, transform .4s ease';
+      document.body.appendChild(el);
+      requestAnimationFrame(()=>{ el.style.transform = 'translateY(-6px)'; });
+      setTimeout(()=>el.style.opacity='0',3600);
+      setTimeout(()=>el.remove(),4200);
+    }
+
+    // Reveal-on-scroll: include buttons so they become visible
+    function initReveals(){
+      const items = document.querySelectorAll('.feature-card, .plan, .hero-left, .hero-right, .testimonial, .stat, .btn');
+      items.forEach(i=>i.classList.add('revealable'));
+      const obs = new IntersectionObserver((entries, o)=>{
+        entries.forEach(entry=>{
+          if(entry.isIntersecting){
+            entry.target.classList.add('reveal');
+            o.unobserve(entry.target);
+          }
+        });
+      },{threshold:0.12});
+      items.forEach(i=>obs.observe(i));
+    }
+
+    // sequential chat playback
+    function animateChat(){
+      const chat = document.getElementById('chat');
+      if(!chat) return;
+      const bubbles = Array.from(chat.querySelectorAll('.bubble'));
+      bubbles.forEach((b, idx)=>{
+        setTimeout(()=>{
+          b.classList.add('show');
+          chat.scrollTop = chat.scrollHeight;
+          if(b.textContent && b.textContent.includes('AI Supervisor')){
+            b.classList.add('pulse-alert');
+            setTimeout(()=>b.classList.remove('pulse-alert'), 2200);
+            // also flash the alert box briefly
+            alertBox.classList.remove('hidden'); alertBox.classList.add('pulse');
+            setTimeout(()=>{ if(window.scrollY <= 120){ alertBox.classList.add('hidden'); alertBox.classList.remove('pulse'); } }, 2200);
+          }
+        }, 260 * idx + 200);
+      });
+    }
+
+    // numeric count-up (simple)
+    function countUp(id, end, duration=900){
+      const el = document.getElementById(id);
+      if(!el) return;
+      const start = 0; const range = Math.max(1, end - start); const stepTime = Math.max(Math.floor(duration / range), 8);
+      let current = start;
+      const timer = setInterval(()=>{
+        current += 1;
+        el.textContent = current + (id==='cases-counter' ? '+' : '');
+        if(current >= end) clearInterval(timer);
+      }, stepTime);
+    }
+
+    // alert pulse visibility handler
+    function initAlertPulse(){
+      let alerted = false;
+      window.addEventListener('scroll', ()=>{
+        if(window.scrollY > 120 && !alerted){
+          alerted = true; alertBox.classList.remove('hidden'); alertBox.classList.add('pulse');
+        } else if(window.scrollY <= 120 && alerted){
+          alerted = false; alertBox.classList.add('hidden'); alertBox.classList.remove('pulse');
+        }
+      });
+    }
+
+    // make plan cards clickable and open modal with plan selected
+    function initPlanClicks(){
+      document.querySelectorAll('.plan').forEach(p=>{
+        p.addEventListener('click', (e)=>{
+          // if click came from a button, allow that button handler
+          const btn = p.querySelector('button');
+          const planName = p.querySelector('.price') ? (p.querySelector('.small') && p.querySelector('.small').textContent.trim() || '') : '';
+          // prefer plan button label or fallback by detecting the plan title text
+          const titleEl = p.querySelector('.small') || p.querySelector('h3');
+          const title = titleEl ? titleEl.textContent.trim() : '';
+          openLead(title || planName || 'Request demo');
+        });
+        // keyboard accessibility
+        p.setAttribute('tabindex','0');
+        p.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter' || ev.key===' ') { ev.preventDefault(); p.click(); } });
+      });
+    }
+
+    // close modal on backdrop click
+    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeLead(); });
+
+    // accessibility: close modal on Escape
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeLead(); }});
+
+    // Smooth scroll for nav links with sticky header offset
+    (function(){
+      const header = document.querySelector('header');
+      function headerHeight(){ return header ? header.getBoundingClientRect().height : 72; }
+
+      document.querySelectorAll('nav a[href^="#"]').forEach(link=>{
+        link.addEventListener('click', (e)=>{
+          e.preventDefault();
+          const id = link.getAttribute('href').slice(1);
+          const target = document.getElementById(id);
+          if(!target) return;
+          const y = target.getBoundingClientRect().top + window.scrollY - headerHeight() - 12;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+          // update focus for accessibility
+          setTimeout(()=>{ target.setAttribute('tabindex','-1'); target.focus({preventScroll:true}); }, 650);
+        });
+      });
+
+      // If user arrives with a hash, ensure offset scroll
+      if(location.hash){
+        const id = location.hash.slice(1);
+        const t = document.getElementById(id);
+        if(t){ setTimeout(()=>{ const y = t.getBoundingClientRect().top + window.scrollY - headerHeight() - 12; window.scrollTo({top:y}); }, 60); }
+      }
+
+      // show mobile CTA bar when narrow
+      function updateMobileCta(){
+        const bar = document.querySelector('.mobile-cta-bar');
+        if(!bar) return;
+        if(window.innerWidth <= 480) bar.style.display = 'flex'; else bar.style.display = 'none';
+      }
+      window.addEventListener('resize', updateMobileCta);
+      updateMobileCta();
+    })();
+
+    // init everything
+    document.addEventListener('DOMContentLoaded', ()=>{
+      initReveals();
+      document.querySelectorAll('#chat .bubble').forEach(b=>{ b.classList.remove('show'); });
+      setTimeout(animateChat, 420);
+      document.querySelectorAll('.mock').forEach(m=>m.classList.add('floating'));
+      countUp('cases-counter', 120, 1200);
+      document.getElementById('alerts-counter').textContent = 'Real-time';
+      document.getElementById('analytics-counter').textContent = 'Detailed';
+      initAlertPulse();
+      initPlanClicks();
+      // ensure buttons (in case JS loads late) are visible
+      document.querySelectorAll('.btn').forEach(b=>{ b.classList.add('reveal'); b.style.opacity='1'; });
+    });
+  </script>
+</body>
+</html>
