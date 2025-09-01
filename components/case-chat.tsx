@@ -9,9 +9,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Send, AlertTriangle, UserIcon, Stethoscope, GraduationCap, Mic, MicOff } from "lucide-react"
+import {
+  ArrowLeft,
+  Send,
+  AlertTriangle,
+  UserIcon,
+  Stethoscope,
+  GraduationCap,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+} from "lucide-react"
 import { AskQuestions } from "@/components/ask-questions"
+import { AvatarConfig } from "@/components/avatar-config"
 import Link from "next/link"
+import HeyGenAvatar, { type HeyGenAvatarRef } from "@/components/heygen-avatar"
 
 interface CaseChatProps {
   medicalCase: MedicalCase
@@ -27,8 +40,27 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
   const [interventionMessage, setInterventionMessage] = useState("")
   const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0)
   const [isListening, setIsListening] = useState(false)
+
+  const [showAvatars, setShowAvatars] = useState(false)
+  const [avatarConfig, setAvatarConfig] = useState({
+    apiKey: "",
+    patientAvatarId: "",
+    doctorAvatarId: "",
+  })
+  const [avatarsReady, setAvatarsReady] = useState({
+    patient: false,
+    doctor: false,
+  })
+  const [peerConnectionStates, setPeerConnectionStates] = useState({
+    patient: "new",
+    doctor: "new",
+  })
+  const [doctorInitializationAllowed, setDoctorInitializationAllowed] = useState(false)
+
   const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const patientAvatarRef = useRef<HeyGenAvatarRef>(null)
+  const doctorAvatarRef = useRef<HeyGenAvatarRef>(null)
 
   useEffect(() => {
     // Create new conversation when component mounts
@@ -42,14 +74,30 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Load avatar config from localStorage only (removed environment variable fallback for security)
+  useEffect(() => {
+    const savedConfig = localStorage.getItem("heygen-avatar-config")
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig)
+        setAvatarConfig(config)
+        if (config.apiKey && config.patientAvatarId && config.doctorAvatarId) {
+          setShowAvatars(true)
+        }
+      } catch (error) {
+        console.error("Error loading avatar config:", error)
+      }
+    }
+  }, [])
+
   // Initialize speech recognition
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+    if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
       recognitionRef.current = new SpeechRecognition()
       recognitionRef.current.continuous = false
       recognitionRef.current.interimResults = false
-      recognitionRef.current.lang = 'en-US'
+      recognitionRef.current.lang = "en-US"
 
       recognitionRef.current.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript
@@ -62,7 +110,7 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
       }
 
       recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
+        console.error("Speech recognition error:", event.error)
         setIsListening(false)
       }
     }
@@ -125,6 +173,10 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
 
         setMessages((prev) => [...prev, doctorMessage])
 
+        if (showAvatars && doctorAvatarRef.current) {
+          doctorAvatarRef.current.speak(doctorEvaluation.content).catch(console.error)
+        }
+
         // Hide intervention after 5 seconds
         setTimeout(() => {
           setShowIntervention(false)
@@ -149,11 +201,14 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
         })
 
         setMessages((prev) => [...prev, patientMessage])
+
+        if (showAvatars && patientAvatarRef.current) {
+          patientAvatarRef.current.speak(patientData.content).catch(console.error)
+        }
       }
 
       // Always trigger question refresh after any response
-      setQuestionRefreshTrigger(prev => prev + 1)
-      
+      setQuestionRefreshTrigger((prev) => prev + 1)
     } catch (error) {
       console.error("Error sending message:", error)
       const errorMessage = conversationService.addMessage(conversation.id, {
@@ -198,24 +253,66 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
     setCurrentMessage(question)
   }
 
-  // Create context for AskQuestions component
-  const askQuestionsContext: ConversationContext = conversation ? {
-    caseId: medicalCase.id,
-    disease: medicalCase.disease,
-    symptoms: medicalCase.symptoms,
-    patientProfile: medicalCase.patientProfile,
-    conversationHistory: messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp,
-    })),
-  } : {
-    caseId: medicalCase.id,
-    disease: medicalCase.disease,
-    symptoms: medicalCase.symptoms,
-    patientProfile: medicalCase.patientProfile,
-    conversationHistory: [],
+  const handleAvatarReady = (role: "patient" | "doctor") => {
+    console.log(`[v0] ${role} avatar ready - connection state: connected`)
+    setAvatarsReady((prev) => ({
+      ...prev,
+      [role]: true,
+    }))
+
+    setPeerConnectionStates((prev) => ({
+      ...prev,
+      [role]: "connected",
+    }))
+
+    if (role === "patient") {
+      console.log("[v0] Patient connected ✅ - Now allowing doctor initialization")
+      setDoctorInitializationAllowed(true)
+    }
   }
+
+  const handleAvatarError = (role: "patient" | "doctor", error: string) => {
+    console.error(`${role} avatar error:`, error)
+    setAvatarsReady((prev) => ({
+      ...prev,
+      [role]: false,
+    }))
+    setPeerConnectionStates((prev) => ({
+      ...prev,
+      [role]: "failed",
+    }))
+  }
+
+  const handleAvatarConfigSave = (config: any) => {
+    setAvatarConfig(config)
+    localStorage.setItem("heygen-avatar-config", JSON.stringify(config))
+
+    // Enable avatars if all config is present
+    if (config.apiKey && config.patientAvatarId && config.doctorAvatarId) {
+      setShowAvatars(true)
+    }
+  }
+
+  // Create context for AskQuestions component
+  const askQuestionsContext: ConversationContext = conversation
+    ? {
+        caseId: medicalCase.id,
+        disease: medicalCase.disease,
+        symptoms: medicalCase.symptoms,
+        patientProfile: medicalCase.patientProfile,
+        conversationHistory: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp,
+        })),
+      }
+    : {
+        caseId: medicalCase.id,
+        disease: medicalCase.disease,
+        symptoms: medicalCase.symptoms,
+        patientProfile: medicalCase.patientProfile,
+        conversationHistory: [],
+      }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -250,6 +347,21 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="outline">{medicalCase.difficulty}</Badge>
+
+              {/* Avatar Config */}
+              <AvatarConfig currentConfig={avatarConfig} onConfigSave={handleAvatarConfigSave} />
+
+              {/* Toggle Avatars */}
+              <Button
+                onClick={() => setShowAvatars(!showAvatars)}
+                variant="outline"
+                size="sm"
+                disabled={!avatarConfig.apiKey || !avatarConfig.patientAvatarId || !avatarConfig.doctorAvatarId}
+              >
+                {showAvatars ? <VideoOff className="h-4 w-4 mr-2" /> : <Video className="h-4 w-4 mr-2" />}
+                {showAvatars ? "Hide" : "Show"} Avatars
+              </Button>
+
               <Button onClick={handleCompleteCase} variant="default">
                 Complete Case & Write SOAP Note
               </Button>
@@ -258,19 +370,75 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
         </div>
       </header>
 
-      {/* Main Content - Chat Interface with Suggested Questions */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ height: 'calc(100vh - 8rem)' }}>
-          
-          {/* Chat Section - Left Side (2/3 width on large screens) */}
-          <div className="lg:col-span-2 flex flex-col">
-            <Card className="flex-1 flex flex-col">
+        <div
+          className={`grid gap-4 ${showAvatars ? "grid-cols-1 xl:grid-cols-4" : "grid-cols-1 lg:grid-cols-3"} h-[calc(100vh-8rem)]`}
+        >
+          {/* Avatars Section - Left Side */}
+          {showAvatars && (
+            <div className="xl:col-span-1 space-y-4">
+              <div className="space-y-4">
+                {/* Patient Avatar */}
+                <div>
+                  <div className="flex items-center mb-2">
+                    <UserIcon className="h-4 w-4 mr-2 text-blue-600" />
+                    <span className="font-medium">Patient</span>
+                    <Badge variant={avatarsReady.patient ? "default" : "secondary"} className="ml-2 text-xs">
+                      {avatarsReady.patient ? "Ready" : "Not Ready"}
+                    </Badge>
+                  </div>
+                  <HeyGenAvatar
+                    ref={patientAvatarRef}
+                    role="patient"
+                    avatarId={avatarConfig.patientAvatarId}
+                    apiKey={avatarConfig.apiKey}
+                    isActive={showAvatars}
+                    onReady={() => handleAvatarReady("patient")}
+                    onError={(error) => handleAvatarError("patient", error)}
+                  />
+                </div>
+
+                {/* Doctor Avatar */}
+                <div>
+                  <div className="flex items-center mb-2">
+                    <Stethoscope className="h-4 w-4 mr-2 text-green-600" />
+                    <span className="font-medium">Supervising Doctor</span>
+                    <Badge variant={avatarsReady.doctor ? "default" : "secondary"} className="ml-2 text-xs">
+                      {avatarsReady.doctor ? "Ready" : "Not Ready"}
+                    </Badge>
+                  </div>
+                  <HeyGenAvatar
+                    ref={doctorAvatarRef}
+                    role="doctor"
+                    avatarId={avatarConfig.doctorAvatarId}
+                    apiKey={avatarConfig.apiKey}
+                    isActive={showAvatars && doctorInitializationAllowed}
+                    onReady={() => handleAvatarReady("doctor")}
+                    onError={(error) => handleAvatarError("doctor", error)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Chat Section - Middle */}
+          <div className={`${showAvatars ? "xl:col-span-2" : "lg:col-span-2"} flex flex-col`}>
+            <Card className="flex-1 flex flex-col mb-4">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Patient Consultation</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Patient Consultation</span>
+                  {showAvatars && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                      <span>AI Avatars Active</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col min-h-0">
-                {/* Chat Messages Container with Fixed Height and Custom Scrollbar */}
-                <div className="h-96 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
+                {/* Chat Messages Container */}
+                <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -293,8 +461,13 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                             {message.role === "student" ? "You" : message.role}
                           </span>
                           {message.isIntervention && <AlertTriangle className="h-3 w-3 ml-2 text-red-600" />}
+                          {showAvatars && message.role !== "student" && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {avatarsReady[message.role as "patient" | "doctor"] ? "🔊 Spoken" : "💬 Text"}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                         <p className="text-xs opacity-70 mt-1">{new Date(message.timestamp).toLocaleTimeString()}</p>
                       </div>
                     </div>
@@ -304,14 +477,18 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
                       <div className="bg-gray-100 rounded-lg p-3 max-w-[80%]">
                         <div className="flex items-center">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                          <span className="text-sm text-gray-600">Patient is responding...</span>
+                          <span className="text-sm text-gray-600">
+                            {showAvatars ? "Patient avatar is responding..." : "Patient is responding..."}
+                          </span>
                         </div>
                       </div>
                     </div>
                   )}
                   <div ref={messagesEndRef} />
-                </div>                {/* Message Input */}
-                <div className="flex space-x-2 mt-4 pt-4 border-t">
+                </div>
+
+                {/* Message Input */}
+                <div className="flex space-x-2 pt-4 border-t">
                   <Input
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
@@ -337,7 +514,7 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
             </Card>
 
             {/* Case Info */}
-            <Card className="mt-4">
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Case Information</CardTitle>
               </CardHeader>
@@ -364,8 +541,8 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
             </Card>
           </div>
 
-          {/* Suggested Questions - Right Side (1/3 width on large screens) */}
-          <div className="lg:col-span-1">
+          {/* Suggested Questions - Right Side */}
+          <div className={`${showAvatars ? "xl:col-span-1" : "lg:col-span-1"}`}>
             <AskQuestions
               context={askQuestionsContext}
               onQuestionSelect={handleQuestionSelect}

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { aiService, type ConversationContext } from "@/lib/ai-service"
+import { aiService } from "@/lib/ai-service"
+import type { ConversationContext } from "@/lib/data-models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,14 +10,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error("Error in patient response API:", error)
-    return NextResponse.json(
-      {
-        content: "I'm having trouble responding right now. Please check your API key configuration.",
-        confidence: 0.1,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    console.error("Error generating patient response:", error)
+    return NextResponse.json({ error: "Failed to generate patient response" }, { status: 500 })
   }
 }

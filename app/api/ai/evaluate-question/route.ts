@@ -1,23 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { aiService, type ConversationContext } from "@/lib/ai-service"
+import { aiService } from "@/lib/ai-service"
+import type { ConversationContext } from "@/lib/data-models"
 
 export async function POST(request: NextRequest) {
   try {
     const { studentQuestion, context }: { studentQuestion: string; context: ConversationContext } = await request.json()
 
-    const response = await aiService.evaluateStudentQuestion(studentQuestion, context)
+    const evaluation = await aiService.evaluateStudentQuestion(studentQuestion, context)
 
-    return NextResponse.json(response)
+    return NextResponse.json({
+      shouldIntervene: evaluation.shouldIntervene,
+      content: evaluation.content,
+      confidence: evaluation.confidence,
+    })
   } catch (error) {
-    console.error("Error in question evaluation API:", error)
-    return NextResponse.json(
-      {
-        content: "Unable to evaluate question. Please check your API key configuration.",
-        confidence: 0.1,
-        shouldIntervene: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    console.error("Error evaluating student question:", error)
+    return NextResponse.json({ error: "Failed to evaluate question" }, { status: 500 })
   }
 }
