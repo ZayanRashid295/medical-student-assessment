@@ -272,7 +272,14 @@ export function CaseChat({ medicalCase, student }: CaseChatProps) {
   }
 
   const handleAvatarError = (role: "patient" | "doctor", error: string) => {
-    console.error(`${role} avatar error:`, error)
+    // Add context for debugging session data issues
+    if (error.includes("Missing session data")) {
+      console.error(`${role} avatar error:`, error, {
+        context: "Likely missing or malformed session data from HeyGen API"
+      })
+    } else {
+      console.error(`${role} avatar error:`, error)
+    }
     setAvatarsReady((prev) => ({
       ...prev,
       [role]: false,
