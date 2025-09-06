@@ -172,49 +172,70 @@ Do you have enough information to proceed with diagnosis and treatment planning?
   ): Promise<LearningSOAPNote> {
     this.checkAPIKey()
 
-    const { disease, patientProfile } = context
+    const { disease, patientProfile, symptoms } = context
     const conversationContext = conversationHistory.map((msg) => `${msg.role}: ${msg.content}`).join("\n")
+
+    // If no conversation, generate SOAP note based on case data only
+    const isCaseOnly = conversationHistory.length === 0
 
     try {
       const { text } = await generateText({
         model: openai("gpt-4o-mini"),
-        system: `You are an experienced doctor writing an educational SOAP note for ${disease}. Based on the patient conversation, create a comprehensive SOAP note with detailed explanations for each section to help medical students learn.
+        system: isCaseOnly
+          ? `You are an experienced doctor writing an educational SOAP note for a medical student based only on the following case information (no conversation yet).`
+          : `You are an experienced doctor writing an educational SOAP note for ${disease}. Based on the patient conversation, create a comprehensive SOAP note with detailed explanations for each section to help medical students learn.`,
+        prompt: isCaseOnly
+          ? `Patient: ${patientProfile.name}, ${patientProfile.age}-year-old ${patientProfile.gender}
+Disease: ${disease}
+Symptoms: ${symptoms.join(", ")}
+Write an educational SOAP note for this case, including explanations for each section. 
+IMPORTANT: Do NOT leave any section blank. Each section must have a detailed, relevant answer. 
+Use this format (plain text, no Markdown, no headings, no asterisks):
 
-Format your response as:
-SUBJECTIVE: [subjective findings]
-SUBJECTIVE_EXPLANATION: [educational explanation of what subjective data is and why these findings are important]
-
-OBJECTIVE: [objective findings - note that this is a simulated case, so include typical objective findings for ${disease}]
-OBJECTIVE_EXPLANATION: [educational explanation of objective data and why these findings support the diagnosis]
-
-ASSESSMENT: [assessment and diagnosis]
-ASSESSMENT_EXPLANATION: [educational explanation of the diagnostic reasoning and differential diagnosis process]
-
-PLAN: [treatment plan]
-PLAN_EXPLANATION: [educational explanation of the treatment rationale and considerations]
-
-Patient: ${patientProfile.name}, ${patientProfile.age}-year-old ${patientProfile.gender}
+SUBJECTIVE: [detailed subjective findings]
+SUBJECTIVE_EXPLANATION: [explanation for subjective]
+OBJECTIVE: [detailed objective findings]
+OBJECTIVE_EXPLANATION: [explanation for objective]
+ASSESSMENT: [detailed assessment]
+ASSESSMENT_EXPLANATION: [explanation for assessment]
+PLAN: [detailed plan]
+PLAN_EXPLANATION: [explanation for plan]`
+          : `Patient: ${patientProfile.name}, ${patientProfile.age}-year-old ${patientProfile.gender}
 Conversation:
-${conversationContext}`,
-        prompt: `Create an educational SOAP note with explanations for this ${disease} case.`,
+${conversationContext}
+Create an educational SOAP note with explanations for this ${disease} case.
+IMPORTANT: Do NOT leave any section blank. Each section must have a detailed, relevant answer.
+Use this format (plain text, no Markdown, no headings, no asterisks):
+
+SUBJECTIVE: [detailed subjective findings]
+SUBJECTIVE_EXPLANATION: [explanation for subjective]
+OBJECTIVE: [detailed objective findings]
+OBJECTIVE_EXPLANATION: [explanation for objective]
+ASSESSMENT: [detailed assessment]
+ASSESSMENT_EXPLANATION: [explanation for assessment]
+PLAN: [detailed plan]
+PLAN_EXPLANATION: [explanation for plan]`,
       })
 
-      // Parse the response
-      const sections = text.split("\n\n")
-      const getSection = (prefix: string) => {
-        const section = sections.find((s) => s.startsWith(prefix))
-        return section?.replace(prefix, "").trim() || ""
+      // Robust section parsing (case-insensitive, allow headings, allow Markdown)
+      const parseSection = (label: string) => {
+        const regex = new RegExp(
+          `(?:^|\\n)(?:\\*\\*|##)?\\s*${label.replace("_", "[ _]")}[\\s\\*]*:?\\s*([\\s\\S]*?)(?=\\n(?:\\*\\*|##)?\\s*[A-Z][A-Z _]+[\\s\\*]*:?|$)`,
+          "i"
+        )
+        const match = text.match(regex)
+        return match ? match[1].trim().replace(/^\*\*|\*\*$/g, "") : ""
       }
 
       return {
-        subjective: getSection("SUBJECTIVE:"),
-        subjectiveExplanation: getSection("SUBJECTIVE_EXPLANATION:"),
-        objective: getSection("OBJECTIVE:"),
-        objectiveExplanation: getSection("OBJECTIVE_EXPLANATION:"),
-        assessment: getSection("ASSESSMENT:"),
-        assessmentExplanation: getSection("ASSESSMENT_EXPLANATION:"),
-        plan: getSection("PLAN:"),
-        planExplanation: getSection("PLAN_EXPLANATION:"),
+        subjective: parseSection("SUBJECTIVE"),
+        subjectiveExplanation: parseSection("SUBJECTIVE_EXPLANATION"),
+        objective: parseSection("OBJECTIVE"),
+        objectiveExplanation: parseSection("OBJECTIVE_EXPLANATION"),
+        assessment: parseSection("ASSESSMENT"),
+        assessmentExplanation: parseSection("ASSESSMENT_EXPLANATION"),
+        plan: parseSection("PLAN"),
+        planExplanation: parseSection("PLAN_EXPLANATION"),
       }
     } catch (error) {
       console.error("Error generating educational SOAP note:", error)

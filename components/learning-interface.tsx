@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { LearningSession, LearningConversationMessage } from "@/lib/learning-service"
 import { sampleCases } from "@/lib/data-models"
+import { learningService } from "@/lib/learning-service"
 import { ArrowLeft, Play, Pause, MessageCircle, FileText, User, Stethoscope, HelpCircle } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 
@@ -23,6 +24,11 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
   const [isProcessing, setIsProcessing] = useState(false)
   const [showSOAPNote, setShowSOAPNote] = useState(false)
   const [studentQuestionResponse, setStudentQuestionResponse] = useState("")
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
+  const [hasLoadedSession, setHasLoadedSession] = useState(false)
+  const [justResumed, setJustResumed] = useState(false)
+  const [activeTab, setActiveTab] = useState<"conversation" | "soap">("conversation")
+  const lastResumedSessionId = useRef<string | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   const medicalCase = sampleCases.find((c) => c.id === session.caseId)
@@ -32,6 +38,94 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
     }
   }, [session.conversation])
+
+  // On mount, check for saved session and prompt user if needed
+  useEffect(() => {
+    if (!hasLoadedSession) {
+      const savedSession = learningService.getLearningSession(session.id)
+      if (savedSession && savedSession.conversation.length > 0 && !savedSession.isComplete) {
+        setShowResumePrompt(true)
+      }
+      setHasLoadedSession(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id])
+
+  // Save session state on every update
+  useEffect(() => {
+    if (hasLoadedSession) {
+      learningService.saveLearningSession(session)
+    }
+  }, [session, hasLoadedSession])
+
+  // Reset conversation when session.caseId changes (i.e., new case/learning mode)
+  useEffect(() => {
+    // Only reset if not just resumed this session
+    if (lastResumedSessionId.current === session.id) {
+      lastResumedSessionId.current = null
+      return
+    }
+    if (session.conversation.length > 0) {
+      const resetSession = {
+        ...session,
+        conversation: [],
+        isComplete: false,
+        soapNote: undefined,
+      }
+      onSessionUpdate(resetSession)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.caseId])
+
+  // Generate SOAP note for the case (independent of conversation) when switching to SOAP tab
+  useEffect(() => {
+    const generateSoapForCase = async () => {
+      if (
+        activeTab === "soap" &&
+        (!session.soapNote || !session.soapNote.subjective) && // also check for empty SOAP note
+        !isProcessing
+      ) {
+        setIsProcessing(true)
+        try {
+          const context = {
+            caseId: session.caseId,
+            disease: session.disease,
+            symptoms: medicalCase?.symptoms || [],
+            patientProfile: session.patientProfile,
+            conversationHistory: [], // No conversation, just case data
+          }
+          // Remove any existing (possibly empty) soapNote before generating
+          const response = await fetch("/api/learning/soap-note", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversation: [], context }), // Empty conversation
+          })
+          if (!response.ok) throw new Error("Failed to generate SOAP note")
+          const soapNote = await response.json()
+          // Only update if the note is not empty
+          if (
+            soapNote.subjective?.trim() ||
+            soapNote.objective?.trim() ||
+            soapNote.assessment?.trim() ||
+            soapNote.plan?.trim()
+          ) {
+            const updatedSession = {
+              ...session,
+              soapNote,
+            }
+            onSessionUpdate(updatedSession)
+          }
+        } catch (error) {
+          // Optionally show error to user
+          console.error("Error generating SOAP note:", error)
+        } finally {
+          setIsProcessing(false)
+        }
+      }
+    }
+    generateSoapForCase()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   const startConversation = async () => {
     if (session.conversation.length > 0) return
@@ -236,8 +330,46 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
     }
   }
 
+  // Handler for resuming or starting over
+  const handleResume = () => {
+    const savedSession = learningService.getLearningSession(session.id)
+    if (savedSession) {
+      lastResumedSessionId.current = savedSession.id
+      onSessionUpdate(savedSession)
+    }
+    setShowResumePrompt(false)
+  }
+  const handleStartOver = () => {
+    const resetSession = {
+      ...session,
+      conversation: [],
+      isComplete: false,
+      soapNote: undefined,
+    }
+    onSessionUpdate(resetSession)
+    setShowResumePrompt(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Resume/Start Over Prompt */}
+      {showResumePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+            <h2 className="text-lg font-semibold mb-2">Resume Previous Session?</h2>
+            <p className="mb-4 text-sm text-gray-700">
+              You have an unfinished learning session for this case. Would you like to continue where you left off or start over?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleStartOver}>
+                Start Over
+              </Button>
+              <Button onClick={handleResume}>Continue</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -339,7 +471,10 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
                 {studentQuestionResponse && (
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <p className="text-sm font-medium text-blue-900 mb-1">Doctor's Response:</p>
-                    <p className="prose prose-sm text-blue-800">{studentQuestionResponse}</p>
+                    {/* Use ReactMarkdown for formatted display */}
+                    <div className="prose prose-sm text-blue-800">
+                      <ReactMarkdown>{studentQuestionResponse}</ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -348,13 +483,18 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
 
           {/* Conversation and SOAP Note */}
           <div className="lg:col-span-2">
-            <Tabs value={showSOAPNote && session.soapNote ? "soap" : "conversation"} className="space-y-6">
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => setActiveTab(val as "conversation" | "soap")}
+              className="space-y-6"
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="conversation">
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Conversation
                 </TabsTrigger>
-                <TabsTrigger value="soap" disabled={!session.soapNote}>
+                {/* Enable SOAP Note tab always */}
+                <TabsTrigger value="soap">
                   <FileText className="h-4 w-4 mr-2" />
                   SOAP Note
                 </TabsTrigger>
@@ -409,6 +549,12 @@ export function LearningInterface({ session, onSessionUpdate }: LearningInterfac
               </TabsContent>
 
               <TabsContent value="soap">
+                {isProcessing && !session.soapNote && (
+                  <div className="flex justify-center items-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-blue-700">Generating SOAP Note...</span>
+                  </div>
+                )}
                 {session.soapNote && (
                   <Card>
                     <CardHeader>
